@@ -22,12 +22,14 @@ def transcribir_audio():
             return ""
 
 def generar_respuesta(texto):
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=texto,
-        max_tokens=150
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "Eres un asistente útil."},
+            {"role": "user", "content": texto}
+        ]
     )
-    respuesta = response.choices[0].text.strip()
+    respuesta = response['choices'][0]['message']['content']
     return respuesta
 
 def hablar(texto):
