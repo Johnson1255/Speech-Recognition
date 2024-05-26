@@ -1,41 +1,53 @@
 import torch
-from transformers import AutoModelForCTC, Wav2Vec2Processor
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+import librosa
+from gtts import gTTS
+import os
 
 # Carga del modelo pre-entrenado Wav2Vec2
-modelo = AutoModelForCTC.from_pretrained("facebook/wav2vec2-base")
-procesador = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
+modelo = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
+procesador = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
 
 # Función para transcribir audio a texto
 def transcribir_audio(ruta_audio):
-  # Carga y preprocesamiento del audio
-  audio, sample_rate = librosa.load(ruta_audio, sr=16000)
-  input_values = procesador(audio, sample_rate=sample_rate, return_tensors="pt")
+    try:
+        # Carga y preprocesamiento del audio
+        audio, sample_rate = librosa.load(ruta_audio, sr=16000)
+        input_values = procesador(audio, sampling_rate=sample_rate, return_tensors="pt", padding=True)
+        
+        # Inferencia del modelo
+        with torch.no_grad():
+            predicciones = modelo(input_values.input_values)
+        
+        # Decodificación de las predicciones
+        transcripcion = procesador.batch_decode(predicciones.logits.argmax(dim=-1))[0]
+        
+        return transcripcion
+    except FileNotFoundError:
+        print(f"Error: El archivo '{ruta_audio}' no se encontró.")
+        return None
+    except Exception as e:
+        print(f"Se produjo un error al transcribir el audio: {e}")
+        return None
 
-  # Inferencia del modelo
-  with torch.no_grad():
-    predicciones = modelo(**input_values)
+# Función para convertir texto a audio utilizando gTTS
+def texto_a_audio(texto, nombre_archivo="output.mp3"):
+    tts = gTTS(texto, lang='es')
+    tts.save(nombre_archivo)
+    return nombre_archivo
 
-  # Decodificación de las predicciones
-  transcripcion = procesador.decode_logits(predicciones.logits.transpose(0, 2))[0]
-
-  return transcripcion
-
-# Función para convertir texto a audio (requiere librería adicional como TTS)
-def texto_a_audio(texto):
-  # Conversión de texto a representación de audio
-  # (Utilizar librería TTS como gTTS o pyttsx3)
-  audio_representacion = convertir_texto_a_audio(texto)
-
-  # Generación del audio
-  audio = generar_audio_desde_representacion(audio_representacion)
-
-  return audio
+# Función para reproducir el audio generado
+def reproducir_audio(ruta_audio):
+    os.system(f"start {ruta_audio}")  # Esto funcionará en Windows, usa un comando apropiado para tu sistema operativo
 
 # Ejemplo de uso
-ruta_audio = "audio.wav"
+ruta_audio = "audio.mp3"  # Asegúrate de que este archivo exista en la ruta especificada
 texto_transcrito = transcribir_audio(ruta_audio)
-print(f"Transcripción: {texto_transcrito}")
+if texto_transcrito:
+    print(f"Transcripción: {texto_transcrito}")
 
-texto_a_convertir = "Hola, ¿cómo estás?"
-audio_generado = texto_a_audio(texto_a_convertir)
-reproducir_audio(audio_generado)
+    texto_a_convertir = "Hola, ¿cómo estás?"
+    ruta_audio_generado = texto_a_audio(texto_a_convertir)
+    reproducir_audio(ruta_audio_generado)
+else:
+    print("No se pudo transcribir el audio.")
