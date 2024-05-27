@@ -9,6 +9,7 @@ from playsound import playsound
 import google.generativeai as genai
 import textwrap
 import re
+from jiwer import wer
 
 # Carga del modelo pre-entrenado Wav2Vec2
 modelo_wav2vec2 = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-xlsr-53-spanish")
@@ -18,7 +19,7 @@ procesador_wav2vec2 = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large
 tool = language_tool_python.LanguageTool('es')
 
 # Función para transcribir audio desde el micrófono
-def transcribir_audio_microfono():
+def transcribir_audio_microfono(transcripcion_real):
     try:
         # Configuración de la grabación de audio desde el micrófono
         fs = 16000  # Frecuencia de muestreo
@@ -47,7 +48,11 @@ def transcribir_audio_microfono():
         transcripcion_corregida = tool.correct(transcripcion)
         print("\nCorregida: " + transcripcion_corregida)
 
-        return transcripcion_corregida
+        # Evaluacion del modelo, Calcular el WER
+        error_wer = wer(transcripcion_real, transcripcion)
+        print(f"Word Error Rate (WER): {error_wer}")
+
+        return transcripcion_corregida, error_wer
     
     except Exception as e:
         print(f"Se produjo un error al transcribir el audio desde el micrófono: {e}")
@@ -58,7 +63,10 @@ def transcribir_audio_microfono():
 genai.configure(api_key='')
 model = genai.GenerativeModel('gemini-pro')
 
-texto_transcrito = transcribir_audio_microfono()
+# Aquí debes proporcionar la transcripción real del audio grabado, de lo que se va a decir en el microfoso
+transcripcion_real = "Donde queda Colombia"
+
+texto_transcrito, error_wer = transcribir_audio_microfono(transcripcion_real)
 
 PROMPT = texto_transcrito
 response1 = model.generate_content(PROMPT)

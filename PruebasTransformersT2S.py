@@ -26,18 +26,19 @@ import soundfile as sf
 sf.write("tts_example.wav", speech.numpy(), samplerate=16000)
 """
 
+from transformers import pipeline
 import scipy
-from transformers import AutoProcessor, AutoModel
 
-processor = AutoProcessor.from_pretrained("suno/bark-small")
-model = AutoModel.from_pretrained("suno/bark-small")
+# Initialize the Text-to-Speech pipeline with the Bark model
+synthesiser = pipeline("text-to-speech", "suno/bark")
 
-inputs = processor(
-    text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."],
-    return_tensors="pt",
-)
+# Define the text you want to convert to speech
+text = "Hello, my dog is cooler than you!"
 
-speech_values = model.generate(**inputs, do_sample=True)
+# Generate speech using the pipeline with optional sampling for variation
+speech = synthesiser(text, forward_params={"do_sample": True})
 
-sampling_rate = model.config.sample_rate
-scipy.io.wavfile.write("bark_out.mp3", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
+# Save the generated speech to a WAV file using scipy
+scipy.io.wavfile.write("bark_out.wav", rate=speech["sampling_rate"], data=speech["audio"])
+
+print("Speech saved to bark_out.wav")
