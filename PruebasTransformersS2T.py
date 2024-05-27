@@ -5,8 +5,8 @@ import numpy as np
 import language_tool_python
 
 # Carga del modelo pre-entrenado Wav2Vec2
-modelo_wav2vec2 = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
-procesador_wav2vec2 = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
+modelo_wav2vec2 = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-xlsr-53-spanish")
+procesador_wav2vec2 = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-xlsr-53-spanish")
 
 # Inicializa el corrector gramatical de LanguageTool para español
 tool = language_tool_python.LanguageTool('es')
