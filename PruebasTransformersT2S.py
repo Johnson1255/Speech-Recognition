@@ -26,19 +26,11 @@ import soundfile as sf
 sf.write("tts_example.wav", speech.numpy(), samplerate=16000)
 """
 
-from transformers import pipeline
 import scipy
-
-synthesiser = pipeline("text-to-speech", "suno/bark")
-
-speech = synthesiser("Hello, my dog is cooler than you!", forward_params={"do_sample": True})
-
-scipy.io.wavfile.write("bark_out.wav", rate=speech["sampling_rate"], data=speech["audio"])
-
 from transformers import AutoProcessor, AutoModel
 
-processor = AutoProcessor.from_pretrained("suno/bark")
-model = AutoModel.from_pretrained("suno/bark")
+processor = AutoProcessor.from_pretrained("suno/bark-small")
+model = AutoModel.from_pretrained("suno/bark-small")
 
 inputs = processor(
     text=["Hello, my name is Suno. And, uh — and I like pizza. [laughs] But I also have other interests such as playing tic tac toe."],
@@ -48,4 +40,4 @@ inputs = processor(
 speech_values = model.generate(**inputs, do_sample=True)
 
 sampling_rate = model.config.sample_rate
-scipy.io.wavfile.write("bark_out.wav", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
+scipy.io.wavfile.write("bark_out.mp3", rate=sampling_rate, data=speech_values.cpu().numpy().squeeze())
