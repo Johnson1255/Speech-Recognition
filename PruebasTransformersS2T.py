@@ -2,6 +2,7 @@ import torch
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 import sounddevice as sd
 import numpy as np
+from textblob import TextBlob
 
 # Carga del modelo pre-entrenado Wav2Vec2
 modelo_wav2vec2 = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
@@ -32,8 +33,13 @@ def transcribir_audio_microfono():
 
         # Decodificación de las predicciones
         transcripcion = procesador_wav2vec2.batch_decode(logits.argmax(dim=-1))[0]
+        print("Sin corregir: " + transcripcion)
 
-        return transcripcion
+        transcripcion_corregida = TextBlob(transcripcion).correct()
+        print("\nCorregida: " + str(transcripcion_corregida))
+
+        return transcripcion_corregida
+    
     except Exception as e:
         print(f"Se produjo un error al transcribir el audio desde el micrófono: {e}")
         return None
