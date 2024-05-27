@@ -14,7 +14,7 @@ with mic as source:
     audio = r.listen(source)
 
 try:
-    texto = r.recognize_google(audio)
+    texto = r.recognize_google(audio, language = 'es-ES')
     print(f"Texto: {texto}")
 
     # Manejo de error si la voz no se detecta de manera adecuada
@@ -38,7 +38,7 @@ print("Con *: " + texto1)
 texto_limpio = re.sub(r"\*", "", texto1)
 texto_limpio = texto_limpio.strip()
 
-print("Sin *: " + texto_limpio)
+print("\nSin *: " + texto_limpio)
 
 tts = gTTS(text=texto_limpio, lang="es")
 filename = "audio_t2s.mp3"
