@@ -2,11 +2,14 @@ import torch
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 import sounddevice as sd
 import numpy as np
-from textblob import TextBlob
+import language_tool_python
 
 # Carga del modelo pre-entrenado Wav2Vec2
 modelo_wav2vec2 = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
 procesador_wav2vec2 = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
+
+# Inicializa el corrector gramatical de LanguageTool para español
+tool = language_tool_python.LanguageTool('es')
 
 # Función para transcribir audio desde el micrófono
 def transcribir_audio_microfono():
@@ -35,8 +38,8 @@ def transcribir_audio_microfono():
         transcripcion = procesador_wav2vec2.batch_decode(logits.argmax(dim=-1))[0]
         print("Sin corregir: " + transcripcion)
 
-        transcripcion_corregida = TextBlob(transcripcion).correct()
-        print("\nCorregida: " + str(transcripcion_corregida))
+        transcripcion_corregida = tool.correct(transcripcion)
+        print("\nCorregida: " + transcripcion_corregida)
 
         return transcripcion_corregida
     
