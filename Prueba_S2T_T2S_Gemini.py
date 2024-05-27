@@ -3,6 +3,7 @@ from gtts import gTTS
 from playsound import playsound
 import google.generativeai as genai
 import textwrap
+import re
 
 r = sr.Recognizer()
 mic = sr.Microphone()
@@ -29,13 +30,18 @@ model = genai.GenerativeModel('gemini-pro')
 
 PROMPT = {texto}
 response1 = model.generate_content(PROMPT)
-max_chars = 50  
+max_chars = 500
 texto1 = textwrap.shorten(response1.text, max_chars)
 
-texto1 = response1.text
+print("Con *: " + texto1)
 
-tts = gTTS(text=texto1, lang="es")
-filename = "audiot2s.mp3"
+texto_limpio = re.sub(r"\*", "", texto1)
+texto_limpio = texto_limpio.strip()
+
+print("Sin *: " + texto_limpio)
+
+tts = gTTS(text=texto_limpio, lang="es")
+filename = "audio_t2s.mp3"
 tts.save(filename)
 
 playsound(filename)
