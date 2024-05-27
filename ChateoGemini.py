@@ -1,53 +1,79 @@
 import torch
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-import librosa
+import sounddevice as sd
+import numpy as np
+import language_tool_python
+import speech_recognition as sr
 from gtts import gTTS
-import os
+from playsound import playsound
+import google.generativeai as genai
+import textwrap
+import re
 
 # Carga del modelo pre-entrenado Wav2Vec2
-modelo = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
-procesador = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
+modelo_wav2vec2 = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-xlsr-53-spanish")
+procesador_wav2vec2 = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-large-xlsr-53-spanish")
 
-# Función para transcribir audio a texto
-def transcribir_audio(ruta_audio):
+# Inicializa el corrector gramatical de LanguageTool para español
+tool = language_tool_python.LanguageTool('es')
+
+# Función para transcribir audio desde el micrófono
+def transcribir_audio_microfono():
     try:
-        # Carga y preprocesamiento del audio
-        audio, sample_rate = librosa.load(ruta_audio, sr=16000)
-        input_values = procesador(audio, sampling_rate=sample_rate, return_tensors="pt", padding=True)
-        
-        # Inferencia del modelo
+        # Configuración de la grabación de audio desde el micrófono
+        fs = 16000  # Frecuencia de muestreo
+        duracion = 5  # Duración de la grabación en segundos
+
+        print("Grabando audio...")
+
+        # Captura de audio desde el micrófono
+        audio = sd.rec(int(duracion * fs), samplerate=fs, channels=1, dtype="float32")
+        sd.wait()  # Espera a que termine la grabación
+
+        print("Grabación finalizada.")
+
+        # Preprocesamiento del audio para Wav2Vec2
+        audio = np.squeeze(audio)
+        input_values = procesador_wav2vec2(audio, sampling_rate=fs, return_tensors="pt", padding=True)
+
+        # Inferencia del modelo Wav2Vec2
         with torch.no_grad():
-            predicciones = modelo(input_values.input_values)
-        
+            logits = modelo_wav2vec2(input_values.input_values).logits
+
         # Decodificación de las predicciones
-        transcripcion = procesador.batch_decode(predicciones.logits.argmax(dim=-1))[0]
-        
-        return transcripcion
-    except FileNotFoundError:
-        print(f"Error: El archivo '{ruta_audio}' no se encontró.")
-        return None
+        transcripcion = procesador_wav2vec2.batch_decode(logits.argmax(dim=-1))[0]
+        print("Sin corregir: " + transcripcion)
+
+        transcripcion_corregida = tool.correct(transcripcion)
+        print("\nCorregida: " + transcripcion_corregida)
+
+        return transcripcion_corregida
+    
     except Exception as e:
-        print(f"Se produjo un error al transcribir el audio: {e}")
+        print(f"Se produjo un error al transcribir el audio desde el micrófono: {e}")
         return None
 
-# Función para convertir texto a audio utilizando gTTS
-def texto_a_audio(texto, nombre_archivo="output.mp3"):
-    tts = gTTS(texto, lang='es')
-    tts.save(nombre_archivo)
-    return nombre_archivo
+# Ejemplo de uso con audio desde el micrófono
 
-# Función para reproducir el audio generado
-def reproducir_audio(ruta_audio):
-    os.system(f"start {ruta_audio}")  # Esto funcionará en Windows, usa un comando apropiado para tu sistema operativo
+genai.configure(api_key='')
+model = genai.GenerativeModel('gemini-pro')
 
-# Ejemplo de uso
-ruta_audio = "audio.mp3"  # Asegúrate de que este archivo exista en la ruta especificada
-texto_transcrito = transcribir_audio(ruta_audio)
-if texto_transcrito:
-    print(f"Transcripción: {texto_transcrito}")
+texto_transcrito = transcribir_audio_microfono()
 
-    texto_a_convertir = "Hola, ¿cómo estás?"
-    ruta_audio_generado = texto_a_audio(texto_a_convertir)
-    reproducir_audio(ruta_audio_generado)
-else:
-    print("No se pudo transcribir el audio.")
+PROMPT = texto_transcrito
+response1 = model.generate_content(PROMPT)
+max_chars = 500
+texto1 = textwrap.shorten(response1.text, max_chars)
+
+print("Con *: " + texto1)
+
+texto_limpio = re.sub(r"\*", "", texto1)
+texto_limpio = texto_limpio.strip()
+
+print("\nSin *: " + texto_limpio)
+
+tts = gTTS(text=texto_limpio, lang="es")
+filename = "audio_respuesta.mp3"
+tts.save(filename)
+
+playsound(filename)
