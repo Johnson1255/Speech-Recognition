@@ -9,6 +9,7 @@ import google.generativeai as genai
 import textwrap
 import re
 from jiwer import wer
+import speech_recognition as sr
 
 # Carga del modelo pre-entrenado Wav2Vec2
 modelo_wav2vec2 = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-large-xlsr-53-spanish")
@@ -62,25 +63,53 @@ def transcribir_audio_microfono(transcripcion_real):
 genai.configure(api_key='')
 model = genai.GenerativeModel('gemini-pro')
 
-# Aquí debes proporcionar la transcripción real del audio grabado, de lo que se va a decir en el microfoso
+# Aquí debes proporcionar la transcripción real del audio grabado, de lo que se va a decir en el micrófono
 transcripcion_real = "Dónde queda Colombia"
 
-texto_transcrito, error_wer = transcribir_audio_microfono(transcripcion_real)
+# Bucle para grabar audio y transcribir continuamente hasta que se indique salir
+while True:
+    texto_transcrito, error_wer = transcribir_audio_microfono(transcripcion_real)
 
-PROMPT = texto_transcrito
-response1 = model.generate_content(PROMPT)
-max_chars = 500
-texto1 = textwrap.shorten(response1.text, max_chars)
+    # Usar reconocimiento de voz para determinar si el usuario desea salir
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Diga 'salir' para terminar el programa.")
+        audio = recognizer.listen(source)
+    try:
+        usuario_input = recognizer.recognize_google(audio, language="es-ES")
+        print("Usuario dijo:", usuario_input)
+        if "salir" in usuario_input.lower():
+            print("Saliendo del programa...")
 
-print("Con *: " + texto1)
+            tts = gTTS(text="¡Adiós, espero que tengas un buen día!", lang="es")
+            filename = "audio_respuesta.mp3"
+            tts.save(filename)
+            playsound(filename)
 
-texto_limpio = re.sub(r"\*", "", texto1)
-texto_limpio = texto_limpio.strip()
+            break
+    except sr.UnknownValueError:
+        print("No se pudo entender lo que dijo el usuario.")
 
-print("\nSin *: " + texto_limpio)
+    except sr.RequestError as e:
+        print("Error al solicitar resultados desde el servicio de reconocimiento de voz; {0}".format(e))
 
-tts = gTTS(text=texto_limpio, lang="es")
-filename = "audio_respuesta.mp3"
-tts.save(filename)
+    except Exception as e:
+        print("Error inesperado: ", str(e))
 
-playsound(filename)
+    PROMPT = texto_transcrito
+    response1 = model.generate_content(PROMPT)
+    max_chars = 500
+    texto1 = textwrap.shorten(response1.text, max_chars)
+
+    print("Con *: " + texto1)
+
+    texto_limpio = re.sub(r"\*", "", texto1)
+    texto_limpio = texto_limpio.strip()
+
+    print("\nSin *: " + texto_limpio)
+
+    tts = gTTS(text=texto_limpio, lang="es")
+    filename = "audio_respuesta.mp3"
+    tts.save(filename)
+
+    playsound(filename)
